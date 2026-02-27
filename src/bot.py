@@ -21,11 +21,13 @@ class SemasaBot:
         page.locator("#NmContaUsuario").fill(self.config.usuario)
         page.locator("#CdHashPwd").fill(self.config.senha)
         page.locator("#CdHashPwd").press("Enter")
-        page.wait_for_load_state("networkidle", timeout=self.config.timeout_ms)
+        # Aguarda o campo de login desaparecer — confirma redirect pós-login
+        page.locator("#NmContaUsuario").wait_for(state="hidden", timeout=self.config.timeout_ms)
 
     def _abrir_tela_servico(self, page: Page) -> None:
         page.goto(self.config.servico_url)
-        page.wait_for_load_state("networkidle", timeout=self.config.timeout_ms)
+        # Aguarda o campo de busca estar disponível — página carregada
+        page.get_by_role("textbox", name="Sequencial AS").wait_for(state="visible", timeout=self.config.timeout_ms)
 
     def _capturar_screenshot(self, page: Page, sequencial: str) -> Path:
         self.config.screenshot_dir.mkdir(parents=True, exist_ok=True)
@@ -33,6 +35,15 @@ class SemasaBot:
         path = self.config.screenshot_dir / f"{sequencial}_{stamp}.png"
         page.screenshot(path=str(path), full_page=True)
         return path
+
+    def _aguardar_status(self, page: Page) -> None:
+        # Aguarda qualquer célula de status aparecer após a busca
+        locator = (
+            page.get_by_role("cell", name="CANCELADO")
+            .or_(page.get_by_role("cell", name="EXECUTADO"))
+            .or_(page.get_by_role("cell", name="PROGRAMADO"))
+        )
+        locator.first.wait_for(state="visible", timeout=self.config.timeout_ms)
 
     def _status_da_ordem(self, page: Page) -> str:
         if page.get_by_role("cell", name="CANCELADO").first.is_visible():
@@ -51,6 +62,9 @@ class SemasaBot:
         seq.click()
         seq.fill(row.sequencial_as)
         seq.press("Enter")
+
+        # Aguarda resultado da busca antes de ler o status
+        self._aguardar_status(page)
 
         status_atual = self._status_da_ordem(page)
         if status_atual in {"CANCELADO", "EXECUTADO"}:
@@ -86,8 +100,9 @@ class SemasaBot:
                 ultimo_erro = f"ERRO: tentativa {tentativa} - {exc}"
 
             self.logger.warning("Falha sequencial=%s tentativa=%s: %s", row.sequencial_as, tentativa, ultimo_erro)
+            # Volta para a tela de serviço e aguarda o campo de busca
             page.goto(self.config.servico_url)
-            page.wait_for_load_state("networkidle", timeout=self.config.timeout_ms)
+            page.get_by_role("textbox", name="Sequencial AS").wait_for(state="visible", timeout=self.config.timeout_ms)
 
         return ultimo_erro or "ERRO: falha desconhecida"
 
@@ -101,10 +116,6 @@ class SemasaBot:
 
         for i, row in enumerate(rows, start=1):
             self.logger.info("Processando %s/%s - sequencial=%s", i, len(rows), row.sequencial_as)
-
-            if i > 1:
-                # segue no looping sem novo login
-                pass
 
             try:
                 status = self._processar_com_retry(page, row)
@@ -121,7 +132,7 @@ class SemasaBot:
 
             save_callback(row.index, status)
 
-            # sessão expirada: tenta relogin 1x quando cair para login
+            # Sessão expirada: tenta relogin 1x quando cair para login
             if page.locator("#NmContaUsuario").first.count() > 0:
                 self.logger.warning("Sessão possivelmente expirada. Tentando relogin automático.")
                 self._login(page)
