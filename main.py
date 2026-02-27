@@ -42,9 +42,12 @@ def main() -> None:
 
     bot = SemasaBot(config, logger)
     contador = {"desde_ultimo_save": 0}
+    resumo: dict[str, int] = {}
 
     def on_row_done(row_index: int, status: str) -> None:
         repo.update_status(row_index, status)
+        chave = status if not status.startswith("ERRO") else "ERRO"
+        resumo[chave] = resumo.get(chave, 0) + 1
         contador["desde_ultimo_save"] += 1
         if contador["desde_ultimo_save"] >= config.save_every:
             repo.save()
@@ -54,7 +57,10 @@ def main() -> None:
         bot.run(playwright, rows, on_row_done)
 
     repo.save()
-    logger.info("Execução finalizada com sucesso.")
+
+    logger.info("Execução finalizada. Resumo:")
+    for status, total in sorted(resumo.items()):
+        logger.info("  %-25s %d", status, total)
 
 
 if __name__ == "__main__":

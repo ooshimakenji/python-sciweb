@@ -66,12 +66,13 @@ class SemasaBot:
         seq.fill(row.sequencial_as)
         seq.press("Enter")
 
-        # Aguarda resultado da busca antes de ler o status
+        # Aguarda o sequencial correto aparecer na tabela — evita ler resultado de busca anterior
+        page.get_by_role("cell", name=row.sequencial_as, exact=True).wait_for(state="visible", timeout=self.config.timeout_ms)
         self._aguardar_status(page)
 
         status_atual = self._status_da_ordem(page)
         if status_atual in {"CANCELADO", "EXECUTADO"}:
-            return status_atual
+            return f"PULADO: {status_atual}"
         if status_atual == "DESCONHECIDO":
             return "ERRO: status não identificado"
 
