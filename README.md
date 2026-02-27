@@ -1,78 +1,93 @@
-# Roadmap + Starter Kit: Automação SEMASA
+# Robô SEMASA (Playwright + Pandas)
 
-Este repositório traz uma base funcional para automatizar o preenchimento de protocolos no SEMASA usando **Python + Playwright + Pandas**.
+Automação para fluxo único do SCIWEB:
+- login 1 vez,
+- busca `Sequencial AS`,
+- identifica `CANCELADO`/`EXECUTADO`/`PROGRAMADO`,
+- se programado abre encerramento, preenche parecer fixo e data da planilha,
+- clica em `Encerrar`, valida mensagem de sucesso,
+- grava resultado no Excel e continua o loop sem novo login.
 
-## 1) Preparação do ambiente
+## Estrutura
 
-```bash
+- `main.py`: orquestração geral
+- `src/config.py`: carregamento `.env` e argumentos
+- `src/excel_repo.py`: leitura/escrita da planilha
+- `src/bot.py`: automação Playwright
+- `semasa_bot.py`: entrypoint simples
+- `run_semasa_bot.bat`: execução manual no Windows
+
+## 1) Instalação (Windows)
+
+```powershell
 python -m venv .venv
-source .venv/bin/activate
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 playwright install chromium
 ```
 
-Bibliotecas principais:
-- `playwright`: navegação e interação com a aplicação web.
-- `pandas`: leitura/manipulação da planilha.
-- `openpyxl`: engine de leitura/escrita `.xlsx`.
+## 2) Credenciais em `.env`
 
-## 2) Engenharia reversa (o pulo do gato)
+1. Copie `.env.example` para `.env`.
+2. Ajuste:
 
-Use o codegen para mapear seletores reais:
-
-```bash
-playwright codegen https://SEU-SISTEMA/login
+```dotenv
+SEMASA_USUARIO=SEU_USUARIO
+SEMASA_SENHA=SUA_SENHA
 ```
 
-Depois, substitua os valores do dicionário `selectors` no arquivo `semasa_bot.py`.
+## 3) Planilha esperada
 
-Checklist de mapeamento:
-- Campo usuário/senha e botão de login.
-- Campo de protocolo e botão de busca.
-- Campo de parecer.
-- Campo de data.
-- Botão salvar.
-- Alerta/toast de sucesso.
-- Botão limpar formulário (fallback em erro).
+Colunas obrigatórias:
 
-## 3) Lógica de dados (pandas)
-
-A planilha precisa ter as colunas abaixo:
-
-| Coluna | Nome esperado |
+| Coluna | Nome |
 |---|---|
-| A | `Protocolo` |
-| B | `Parecer` |
-| C | `Data` |
-| D | `Status` |
+| A | `Sequencial AS` |
+| B | `Data de execução` |
+| C | `Status` |
 
-O robô processa **somente** linhas com `Status` vazio, para permitir retomada após queda de conexão/energia.
+### Como funciona o `Status`
 
-## 4) Desenvolvimento do robô
+A coluna `Status` é o checkpoint da automação:
+- vazio: pendente (será processado)
+- `SUCESSO`: encerrado com sucesso
+- `CANCELADO`: já cancelado no sistema
+- `EXECUTADO`: já executado no sistema
+- `ERRO: ...`: falha e motivo
 
-Arquivo principal: `semasa_bot.py`
+Assim você pode reexecutar o bot sem reprocessar o que já foi tratado.
 
-Recursos implementados:
-- Login único e sessão mantida em `context` do Playwright.
-- Loop por linhas pendentes da planilha.
-- `try/except` por linha para não interromper lote inteiro.
-- Escrita de `OK` ou `Erro: ...` na coluna `Status`.
-- Salvamento incremental a cada `save_every` itens.
+## 4) Execução
 
-Execução:
+### Opção A: `.bat`
 
-```bash
-python semasa_bot.py
+```bat
+run_semasa_bot.bat
 ```
 
-## 5) Estabilidade e finalização
+### Opção B: PowerShell
 
-- Durante homologação: use `headless=False`.
-- Em produção: altere para `headless=True`.
-- Ajuste `save_every` para `5` ou `10` conforme volume e risco.
+```powershell
+python semasa_bot.py --excel dados.xlsx
+```
 
-## Valor para currículo
+Parâmetros úteis:
+- `--headless` executa sem abrir navegador
+- `--save-every 5` salva incrementalmente
+- `--retries 2` tentativas por linha
+- `--servico-url` URL fixa de serviço (já vem preenchida)
+- `--success-message "Dados salvos com sucesso!"`
 
-- Stack moderna de automação (Playwright).
-- Arquitetura resiliente (tratamento de exceções + retomada por status).
-- Integração web + dados (`pandas`/`openpyxl`).
+## 5) Logs e evidências
+
+- Log: `logs/semasa_bot.log`
+- Screenshots de erro: `logs/screenshots/*.png`
+- Progresso também aparece no terminal.
+
+## 6) Regras implementadas conforme alinhamento
+
+- Sem relogin por linha (loop contínuo).
+- Relogin automático se sessão expirar.
+- Retry de 2 tentativas por linha (configurável).
+- Data obrigatória no formato `dd/mm/aaaa`; se vazia/inválida, registra erro e pula.
+- Parecer fixo: `Serviço Executado conforme demanda` (configurável via `--parecer-fixo`).
