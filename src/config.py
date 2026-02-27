@@ -27,22 +27,29 @@ class AppConfig:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Robô SEMASA (Playwright + Pandas)")
-    parser.add_argument("--excel", default="dados.xlsx", help="Caminho da planilha")
-    parser.add_argument("--login-url", default="http://sciweb.semasaitajai.com.br:5050/")
+    parser.add_argument("--excel", default=os.getenv("SEMASA_EXCEL", "dados.xlsx"), help="Caminho da planilha")
+    parser.add_argument("--login-url", default=os.getenv("SEMASA_LOGIN_URL", "http://sciweb.semasaitajai.com.br:5050/"))
     parser.add_argument(
         "--servico-url",
-        default="http://sciweb.semasaitajai.com.br:5050/Servicos/Servico?aba=1&NrSequencial=2025146360",
+        default=os.getenv(
+            "SEMASA_SERVICO_URL",
+            "http://sciweb.semasaitajai.com.br:5050/Servicos/Servico?aba=1&NrSequencial=2025146360",
+        ),
     )
     parser.add_argument("--usuario", default=os.getenv("SEMASA_USUARIO", ""))
     parser.add_argument("--senha", default=os.getenv("SEMASA_SENHA", ""))
-    parser.add_argument("--headless", action="store_true")
-    parser.add_argument("--save-every", type=int, default=5)
-    parser.add_argument("--timeout-ms", type=int, default=15_000)
-    parser.add_argument("--retries", type=int, default=2)
-    parser.add_argument("--success-message", default="Dados salvos com sucesso!")
-    parser.add_argument("--parecer-fixo", default="Serviço Executado conforme demanda")
-    parser.add_argument("--log-file", default="logs/semasa_bot.log")
-    parser.add_argument("--screenshot-dir", default="logs/screenshots")
+    parser.add_argument(
+        "--headless",
+        action="store_true",
+        default=os.getenv("SEMASA_HEADLESS", "false").lower() == "true",
+    )
+    parser.add_argument("--save-every", type=int, default=int(os.getenv("SEMASA_SAVE_EVERY", "5")))
+    parser.add_argument("--timeout-ms", type=int, default=int(os.getenv("SEMASA_TIMEOUT_MS", "15000")))
+    parser.add_argument("--retries", type=int, default=int(os.getenv("SEMASA_RETRIES", "2")))
+    parser.add_argument("--success-message", default=os.getenv("SEMASA_SUCCESS_MESSAGE", "Dados salvos com sucesso!"))
+    parser.add_argument("--parecer-fixo", default=os.getenv("SEMASA_PARECER_FIXO", "Serviço Executado conforme demanda"))
+    parser.add_argument("--log-file", default=os.getenv("SEMASA_LOG_FILE", "logs/semasa_bot.log"))
+    parser.add_argument("--screenshot-dir", default=os.getenv("SEMASA_SCREENSHOT_DIR", "logs/screenshots"))
     return parser
 
 
