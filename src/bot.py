@@ -4,7 +4,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 
-from playwright.sync_api import BrowserContext, Page, Playwright, TimeoutError as PlaywrightTimeoutError
+from playwright.sync_api import BrowserContext, Page, Playwright, TimeoutError as PlaywrightTimeoutError, expect
 
 from src.config import AppConfig
 from src.excel_repo import RowData
@@ -58,6 +58,9 @@ class SemasaBot:
         if not row.data_execucao:
             return "ERRO: Data de execução vazia/inválida"
 
+        # Sempre parte da tela de serviço para garantir estado consistente
+        self._abrir_tela_servico(page)
+
         seq = page.get_by_role("textbox", name="Sequencial AS")
         seq.click()
         seq.fill(row.sequencial_as)
@@ -72,7 +75,12 @@ class SemasaBot:
         if status_atual == "DESCONHECIDO":
             return "ERRO: status não identificado"
 
-        page.get_by_role("button", name="Encerramento").click()
+        # Seleciona a linha PROGRAMADO para habilitar os botões de ação
+        page.get_by_role("cell", name="PROGRAMADO").first.click()
+
+        encerramento_btn = page.get_by_role("button", name="Encerramento")
+        expect(encerramento_btn).to_be_enabled(timeout=self.config.timeout_ms)
+        encerramento_btn.click()
         parecer = page.locator("#DsParecer")
         parecer.click()
         parecer.fill(self.config.fixed_parecer)
@@ -81,9 +89,8 @@ class SemasaBot:
         data_exec.click()
         data_exec.press("ControlOrMeta+a")
         data_exec.fill(row.data_execucao)
-        data_exec.press("Enter")
 
-        page.get_by_role("button", name="Encerrar").click()
+        page.locator("#salvar").click()
 
         sucesso = page.get_by_text(self.config.success_message, exact=False).first
         sucesso.wait_for(state="visible", timeout=self.config.timeout_ms)
@@ -100,9 +107,6 @@ class SemasaBot:
                 ultimo_erro = f"ERRO: tentativa {tentativa} - {exc}"
 
             self.logger.warning("Falha sequencial=%s tentativa=%s: %s", row.sequencial_as, tentativa, ultimo_erro)
-            # Volta para a tela de serviço e aguarda o campo de busca
-            page.goto(self.config.servico_url)
-            page.get_by_role("textbox", name="Sequencial AS").wait_for(state="visible", timeout=self.config.timeout_ms)
 
         return ultimo_erro or "ERRO: falha desconhecida"
 
