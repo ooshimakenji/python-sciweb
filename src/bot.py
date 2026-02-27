@@ -94,7 +94,18 @@ class SemasaBot:
         page.locator("#salvar").click()
 
         sucesso = page.get_by_text(self.config.success_message, exact=False).first
-        sucesso.wait_for(state="visible", timeout=self.config.timeout_ms)
+        dialog_ok = page.locator("a.ZebraDialog_Button0")
+
+        # Aguarda sucesso ou dialog de validação de colaboradores (carregamento assíncrono)
+        sucesso.or_(dialog_ok).first.wait_for(state="visible", timeout=self.config.timeout_ms)
+
+        if dialog_ok.is_visible():
+            # Colaboradores ainda não haviam carregado — fecha dialog e tenta salvar de novo
+            self.logger.warning("Dialog de colaboradores detectado — reenviando formulário.")
+            dialog_ok.click()
+            page.locator("#salvar").click()
+            sucesso.wait_for(state="visible", timeout=self.config.timeout_ms)
+
         return "SUCESSO"
 
     def _processar_com_retry(self, page: Page, row: RowData) -> str:
