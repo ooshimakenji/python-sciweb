@@ -68,4 +68,35 @@ Status possíveis após execução: `SUCESSO`, `CANCELADO`, `EXECUTADO`, `ERRO: 
 - Não criar novos arquivos sem necessidade clara
 - Commits em português
 
+## Debug em modo headless
+
+Com `SEMASA_HEADLESS=true` não é possível ver o browser. Para investigar erros:
+
+**1. Ler o log**
+```
+logs/semasa_bot.log
+```
+Buscar pelas linhas `ERROR` ou `WARNING`. O log registra sequencial, tentativa e mensagem de exceção.
+
+**2. Ler os screenshots**
+```
+logs/screenshots/<sequencial>_<timestamp>.png
+```
+Screenshot é salvo automaticamente em todo `ERRO`. Usar a ferramenta `Read` do Claude para visualizar a imagem — ela é multimodal e consegue ver o estado da página no momento do erro.
+
+**3. Cruzar com erros conhecidos**
+
+| Sintoma no screenshot / log | Causa provável | Solução |
+|---|---|---|
+| Página de login visível | Sessão expirou | Aumentar `SEMASA_TIMEOUT_MS` ou verificar VPN |
+| Tela de busca vazia | `_abrir_tela_servico` falhou | Verificar `SEMASA_SERVICO_URL` |
+| Formulário de encerramento aberto, sem mensagem de sucesso | ZebraDialog não foi detectado | Checar se `.ZebraDialog_Button0` ainda é o seletor correto |
+| `net::ERR_ABORTED` | VPN caiu durante navegação | Reconectar VPN e rodar novamente |
+| Timeout em `Sequencial AS` textbox | Página não carregou | Aumentar `SEMASA_TIMEOUT_MS` ou verificar URL |
+| Status `DESCONHECIDO` | Nova célula de status no sistema | Adicionar novo status em `_status_da_ordem` e `_aguardar_status` |
+
+**4. Rodar headful temporariamente**
+
+Para um debug mais profundo, setar `SEMASA_HEADLESS=false` no `.env`, rodar o bot e observar o browser.
+
 @CLAUDE.soul
