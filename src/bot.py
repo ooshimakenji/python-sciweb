@@ -85,6 +85,12 @@ class SemasaBot:
         encerramento_btn = page.get_by_role("button", name="Encerramento")
         expect(encerramento_btn).to_be_enabled(timeout=self.config.timeout_ms)
         encerramento_btn.click()
+
+        # Seleciona Equipe=1 para disparar o evento JS que carrega os colaboradores
+        equipe = page.locator("#NrEquipe")
+        equipe.wait_for(state="visible", timeout=self.config.timeout_ms)
+        equipe.select_option("1")
+
         parecer = page.locator("#DsParecer")
         parecer.click()
         parecer.fill(self.config.fixed_parecer)
