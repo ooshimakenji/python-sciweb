@@ -8,6 +8,16 @@ import pandas as pd
 
 REQUIRED_COLUMNS = ["Sequencial AS", "Data de execução", "Status"]
 
+# Status que nunca devem ser reprocessados (erros de dado ou conclusão definitiva)
+STATUS_DEFINITIVOS = {
+    "SUCESSO",
+    "PULADO: EXECUTADO",
+    "PULADO: CANCELADO",
+    "PULADO: PENDENTE",
+    "ERRO: Data de execução vazia/inválida",
+    "ERRO: status não identificado",
+}
+
 
 @dataclass
 class RowData:
@@ -46,7 +56,11 @@ class ExcelRepo:
         return parsed.strftime("%d/%m/%Y")
 
     def get_pending_rows(self) -> list[RowData]:
-        pendentes = self.df[self.df["Status"].str.strip() == ""]
+        def _reprocessavel(status: str) -> bool:
+            s = status.strip()
+            return s == "" or (s.startswith("ERRO:") and s not in STATUS_DEFINITIVOS)
+
+        pendentes = self.df[self.df["Status"].apply(_reprocessavel)]
         result: list[RowData] = []
         for idx, row in pendentes.iterrows():
             result.append(

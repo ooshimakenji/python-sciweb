@@ -48,7 +48,20 @@ Colunas obrigatórias — nomes exatos, case-sensitive:
 | B      | Data de execução | dd/mm/aaaa   |
 | C      | Status           | vazio = pendente |
 
-Status possíveis após execução: `SUCESSO`, `CANCELADO`, `EXECUTADO`, `ERRO: ...`
+Status possíveis após execução:
+
+| Status | Reprocessa? | Descrição |
+|--------|-------------|-----------|
+| _(vazio)_ | Sim | Pendente — será processado |
+| `SUCESSO` | **Não** | Encerrado com sucesso |
+| `PULADO: EXECUTADO` | **Não** | Já estava executado no sistema |
+| `PULADO: CANCELADO` | **Não** | Já estava cancelado no sistema |
+| `PULADO: PENDENTE` | **Não** | Ainda não foi programada — não pode ser encerrada |
+| `ERRO: Data de execução vazia/inválida` | **Não** | Dado errado na planilha — corrigir e limpar Status |
+| `ERRO: status não identificado` | **Não** | Status novo no sistema — requer ajuste no código |
+| `ERRO: timeout tentativa X - ...` | Sim | Falha transitória — reprocessado no próximo run |
+| `ERRO: tentativa X - ...` | Sim | Exceção genérica — reprocessado no próximo run |
+| `ERRO: falha crítica - ...` | Sim | Exceção inesperada — reprocessado no próximo run |
 
 ## Convenções
 

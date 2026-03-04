@@ -42,6 +42,7 @@ class SemasaBot:
             page.get_by_role("cell", name="CANCELADO")
             .or_(page.get_by_role("cell", name="EXECUTADO"))
             .or_(page.get_by_role("cell", name="PROGRAMADO"))
+            .or_(page.get_by_role("cell", name="PENDENTE"))
         )
         locator.first.wait_for(state="visible", timeout=self.config.timeout_ms)
 
@@ -52,6 +53,8 @@ class SemasaBot:
             return "EXECUTADO"
         if page.get_by_role("cell", name="PROGRAMADO").first.is_visible():
             return "PROGRAMADO"
+        if page.get_by_role("cell", name="PENDENTE").first.is_visible():
+            return "PENDENTE"
         return "DESCONHECIDO"
 
     def _encerrar_sequencial(self, page: Page, row: RowData) -> str:
@@ -71,7 +74,7 @@ class SemasaBot:
         self._aguardar_status(page)
 
         status_atual = self._status_da_ordem(page)
-        if status_atual in {"CANCELADO", "EXECUTADO"}:
+        if status_atual in {"CANCELADO", "EXECUTADO", "PENDENTE"}:
             return f"PULADO: {status_atual}"
         if status_atual == "DESCONHECIDO":
             return "ERRO: status não identificado"
